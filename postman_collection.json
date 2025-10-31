@@ -1,0 +1,628 @@
+{
+  "info": {
+    "_postman_id": "jmewallet-api-v1",
+    "name": "JME Wallet - Crypto Platform API",
+    "description": "Complete API collection for JME Wallet crypto trading platform.\n\n**Features:**\n- Automatic token management (tokens saved after login/register)\n- Separate collections for User and Admin endpoints\n- Pre-configured authentication headers\n- Sample request bodies\n\n**Setup:**\n1. Import this collection\n2. Set BASE_URL environment variable (default: http://localhost:5000)\n3. Register or login - tokens are automatically saved\n4. Use protected endpoints - tokens are automatically included\n\n**Environment Variables:**\n- BASE_URL: API base URL\n- USER_TOKEN: Automatically set after user login/register\n- ADMIN_TOKEN: Automatically set after admin login/register",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "item": [
+    {
+      "name": "🏥 Health Check",
+      "description": "Check if the API is running and healthy",
+      "item": [
+        {
+          "name": "Health Check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has success field', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Response has message', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.message).to.exist;",
+                  "});",
+                  "",
+                  "console.log('✅ API is healthy and running!');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/health",
+              "host": ["{{BASE_URL}}"],
+              "path": ["health"]
+            },
+            "description": "Returns the health status of the API server"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "👤 User Endpoints",
+      "description": "All user-related endpoints including authentication and profile management",
+      "item": [
+        {
+          "name": "🔓 Public - Authentication",
+          "description": "Public endpoints that don't require authentication",
+          "item": [
+            {
+              "name": "Register User",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "// Test response status",
+                      "pm.test('Status code is 201', function () {",
+                      "    pm.response.to.have.status(201);",
+                      "});",
+                      "",
+                      "// Test response structure",
+                      "pm.test('Response has success field', function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.success).to.eql(true);",
+                      "});",
+                      "",
+                      "// Test token exists",
+                      "pm.test('Response contains token', function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.data.token).to.exist;",
+                      "});",
+                      "",
+                      "// Auto-save token to environment",
+                      "if (pm.response.code === 201) {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.environment.set('USER_TOKEN', jsonData.data.token);",
+                      "    console.log('✅ User registered successfully!');",
+                      "    console.log('🔑 Token automatically saved to USER_TOKEN');",
+                      "    console.log('📧 User Email:', jsonData.data.user.email);",
+                      "    console.log('🎫 Referral Code:', jsonData.data.user.referralCode);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"SecurePass123\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"phone\": \"+1234567890\",\n  \"referralCode\": \"\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{BASE_URL}}/api/users/register",
+                  "host": ["{{BASE_URL}}"],
+                  "path": ["api", "users", "register"]
+                },
+                "description": "Register a new user account.\n\n**Required Fields:**\n- email: Valid email address\n- password: Min 6 chars, must contain uppercase, lowercase, and number\n- firstName: Min 2 characters\n- lastName: Min 2 characters\n\n**Optional Fields:**\n- phone: Valid phone number format\n- referralCode: Existing user's referral code\n\n**Auto-saves:** USER_TOKEN to environment"
+              },
+              "response": []
+            },
+            {
+              "name": "Login User",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "// Test response status",
+                      "pm.test('Status code is 200', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "// Test response structure",
+                      "pm.test('Response has success field', function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.success).to.eql(true);",
+                      "});",
+                      "",
+                      "// Test token exists",
+                      "pm.test('Response contains token', function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.data.token).to.exist;",
+                      "});",
+                      "",
+                      "// Test user data",
+                      "pm.test('Response contains user data', function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.data.user).to.exist;",
+                      "    pm.expect(jsonData.data.user.email).to.exist;",
+                      "});",
+                      "",
+                      "// Auto-save token to environment",
+                      "if (pm.response.code === 200) {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.environment.set('USER_TOKEN', jsonData.data.token);",
+                      "    console.log('✅ User logged in successfully!');",
+                      "    console.log('🔑 Token automatically saved to USER_TOKEN');",
+                      "    console.log('📧 Email:', jsonData.data.user.email);",
+                      "    console.log('👤 Name:', jsonData.data.user.firstName + ' ' + jsonData.data.user.lastName);",
+                      "    console.log('✔️  KYC Status:', jsonData.data.user.kycStatus);",
+                      "    console.log('🎫 Referral Code:', jsonData.data.user.referralCode);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"SecurePass123\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{BASE_URL}}/api/users/login",
+                  "host": ["{{BASE_URL}}"],
+                  "path": ["api", "users", "login"]
+                },
+                "description": "Login with existing user credentials.\n\n**Required Fields:**\n- email: Registered email address\n- password: User password\n\n**Returns:**\n- JWT token (valid for 7 days)\n- User profile data\n- Wallets and balances\n\n**Auto-saves:** USER_TOKEN to environment"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "🔒 Protected - Profile Management",
+          "description": "Protected endpoints that require USER_TOKEN authentication",
+          "item": [
+            {
+              "name": "Get User Profile",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "// Test response status",
+                      "pm.test('Status code is 200', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "// Test response structure",
+                      "pm.test('Response contains user data', function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.success).to.eql(true);",
+                      "    pm.expect(jsonData.data).to.exist;",
+                      "});",
+                      "",
+                      "// Test user fields",
+                      "pm.test('User has required fields', function () {",
+                      "    var user = pm.response.json().data;",
+                      "    pm.expect(user.email).to.exist;",
+                      "    pm.expect(user.firstName).to.exist;",
+                      "    pm.expect(user.kycStatus).to.exist;",
+                      "    pm.expect(user.referralCode).to.exist;",
+                      "});",
+                      "",
+                      "// Log user info",
+                      "if (pm.response.code === 200) {",
+                      "    var user = pm.response.json().data;",
+                      "    console.log('✅ Profile retrieved successfully!');",
+                      "    console.log('📧 Email:', user.email);",
+                      "    console.log('👤 Name:', user.firstName + ' ' + user.lastName);",
+                      "    console.log('✔️  KYC Status:', user.kycStatus);",
+                      "    console.log('📊 Verification Level:', user.verificationLevel);",
+                      "    console.log('💼 Wallets:', user.wallets.length);",
+                      "    console.log('🎫 Referral Code:', user.referralCode);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{USER_TOKEN}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/users/profile",
+                  "host": ["{{BASE_URL}}"],
+                  "path": ["api", "users", "profile"]
+                },
+                "description": "Get the authenticated user's complete profile.\n\n**Authentication:** Requires USER_TOKEN (auto-included)\n\n**Returns:**\n- Complete user profile\n- KYC status and documents\n- Wallets and balances\n- Referral information\n- Activity timestamps"
+              },
+              "response": []
+            },
+            {
+              "name": "Update User Profile",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "// Test response status",
+                      "pm.test('Status code is 200', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "// Test response structure",
+                      "pm.test('Profile updated successfully', function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.success).to.eql(true);",
+                      "    pm.expect(jsonData.message).to.include('updated');",
+                      "});",
+                      "",
+                      "// Log update info",
+                      "if (pm.response.code === 200) {",
+                      "    var user = pm.response.json().data;",
+                      "    console.log('✅ Profile updated successfully!');",
+                      "    console.log('👤 Updated Name:', user.firstName + ' ' + user.lastName);",
+                      "    console.log('📞 Updated Phone:', user.phone);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{USER_TOKEN}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"firstName\": \"Johnny\",\n  \"lastName\": \"Doe\",\n  \"phone\": \"+1987654321\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{BASE_URL}}/api/users/profile",
+                  "host": ["{{BASE_URL}}"],
+                  "path": ["api", "users", "profile"]
+                },
+                "description": "Update user profile information.\n\n**Authentication:** Requires USER_TOKEN (auto-included)\n\n**Updatable Fields:**\n- firstName\n- lastName\n- phone\n\n**Note:** Email and password cannot be updated via this endpoint"
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "👨‍💼 Admin Endpoints",
+      "description": "All admin-related endpoints including authentication and admin management",
+      "item": [
+        {
+          "name": "🔓 Public - Authentication",
+          "description": "Public admin endpoints that don't require authentication",
+          "item": [
+            {
+              "name": "Register Admin",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "// Test response status",
+                      "pm.test('Status code is 201', function () {",
+                      "    pm.response.to.have.status(201);",
+                      "});",
+                      "",
+                      "// Test response structure",
+                      "pm.test('Response has success field', function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.success).to.eql(true);",
+                      "});",
+                      "",
+                      "// Test token exists",
+                      "pm.test('Response contains token', function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.data.token).to.exist;",
+                      "});",
+                      "",
+                      "// Auto-save token to environment",
+                      "if (pm.response.code === 201) {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.environment.set('ADMIN_TOKEN', jsonData.data.token);",
+                      "    console.log('✅ Admin registered successfully!');",
+                      "    console.log('🔑 Token automatically saved to ADMIN_TOKEN');",
+                      "    console.log('📧 Admin Email:', jsonData.data.admin.email);",
+                      "    console.log('👤 Admin Name:', jsonData.data.admin.name);",
+                      "    console.log('⭐ Super Admin:', jsonData.data.admin.isSuperAdmin);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"admin@jmewallet.com\",\n  \"password\": \"AdminPass123!\",\n  \"name\": \"Admin User\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{BASE_URL}}/api/admin/register",
+                  "host": ["{{BASE_URL}}"],
+                  "path": ["api", "admin", "register"]
+                },
+                "description": "Register a new admin account.\n\n**Required Fields:**\n- email: Valid email address\n- password: Min 8 chars, must contain uppercase, lowercase, number, and special character\n- name: Min 3 characters\n\n**Security:** Stronger password requirements than user accounts\n\n**Auto-saves:** ADMIN_TOKEN to environment"
+              },
+              "response": []
+            },
+            {
+              "name": "Login Admin",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "// Test response status",
+                      "pm.test('Status code is 200', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "// Test response structure",
+                      "pm.test('Response has success field', function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.success).to.eql(true);",
+                      "});",
+                      "",
+                      "// Test token exists",
+                      "pm.test('Response contains token', function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.data.token).to.exist;",
+                      "});",
+                      "",
+                      "// Test admin data",
+                      "pm.test('Response contains admin data', function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.data.admin).to.exist;",
+                      "    pm.expect(jsonData.data.admin.email).to.exist;",
+                      "});",
+                      "",
+                      "// Auto-save token to environment",
+                      "if (pm.response.code === 200) {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.environment.set('ADMIN_TOKEN', jsonData.data.token);",
+                      "    console.log('✅ Admin logged in successfully!');",
+                      "    console.log('🔑 Token automatically saved to ADMIN_TOKEN');",
+                      "    console.log('📧 Email:', jsonData.data.admin.email);",
+                      "    console.log('👤 Name:', jsonData.data.admin.name);",
+                      "    console.log('⭐ Super Admin:', jsonData.data.admin.isSuperAdmin);",
+                      "    console.log('🔄 Active:', jsonData.data.admin.isActive);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"admin@jmewallet.com\",\n  \"password\": \"AdminPass123!\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{BASE_URL}}/api/admin/login",
+                  "host": ["{{BASE_URL}}"],
+                  "path": ["api", "admin", "login"]
+                },
+                "description": "Login with existing admin credentials.\n\n**Required Fields:**\n- email: Registered admin email\n- password: Admin password\n\n**Returns:**\n- JWT token (valid for 7 days)\n- Admin profile data\n- Role and permissions\n\n**Auto-saves:** ADMIN_TOKEN to environment"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "🔒 Protected - Admin Management",
+          "description": "Protected admin endpoints that require ADMIN_TOKEN authentication",
+          "item": [
+            {
+              "name": "Get Admin Profile",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "// Test response status",
+                      "pm.test('Status code is 200', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "// Test response structure",
+                      "pm.test('Response contains admin data', function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.success).to.eql(true);",
+                      "    pm.expect(jsonData.data).to.exist;",
+                      "});",
+                      "",
+                      "// Test admin fields",
+                      "pm.test('Admin has required fields', function () {",
+                      "    var admin = pm.response.json().data;",
+                      "    pm.expect(admin.email).to.exist;",
+                      "    pm.expect(admin.name).to.exist;",
+                      "    pm.expect(admin.isActive).to.exist;",
+                      "    pm.expect(admin.isSuperAdmin).to.exist;",
+                      "});",
+                      "",
+                      "// Log admin info",
+                      "if (pm.response.code === 200) {",
+                      "    var admin = pm.response.json().data;",
+                      "    console.log('✅ Admin profile retrieved successfully!');",
+                      "    console.log('📧 Email:', admin.email);",
+                      "    console.log('👤 Name:', admin.name);",
+                      "    console.log('⭐ Super Admin:', admin.isSuperAdmin);",
+                      "    console.log('🔄 Active:', admin.isActive);",
+                      "    console.log('🕒 Last Login:', admin.lastLogin);",
+                      "    console.log('📅 Created:', admin.createdAt);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{ADMIN_TOKEN}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/api/admin/profile",
+                  "host": ["{{BASE_URL}}"],
+                  "path": ["api", "admin", "profile"]
+                },
+                "description": "Get the authenticated admin's complete profile.\n\n**Authentication:** Requires ADMIN_TOKEN (auto-included)\n\n**Returns:**\n- Complete admin profile\n- Role and permissions\n- Activity timestamps\n- Account status"
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global pre-request script",
+          "console.log('📡 Making request to:', pm.request.url.toString());",
+          "",
+          "// Check if tokens are available for protected routes",
+          "const url = pm.request.url.toString();",
+          "if (url.includes('/profile')) {",
+          "    if (url.includes('/users/') && !pm.environment.get('USER_TOKEN')) {",
+          "        console.warn('⚠️  USER_TOKEN not found. Please login first!');",
+          "    }",
+          "    if (url.includes('/admin/') && !pm.environment.get('ADMIN_TOKEN')) {",
+          "        console.warn('⚠️  ADMIN_TOKEN not found. Please login first!');",
+          "    }",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global test script",
+          "const responseTime = pm.response.responseTime;",
+          "console.log('⏱️  Response time:', responseTime + 'ms');",
+          "",
+          "// Test response time",
+          "pm.test('Response time is less than 2000ms', function () {",
+          "    pm.expect(responseTime).to.be.below(2000);",
+          "});",
+          "",
+          "// Test response format",
+          "pm.test('Response is JSON', function () {",
+          "    pm.response.to.be.json;",
+          "});"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "BASE_URL",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "USER_TOKEN",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "ADMIN_TOKEN",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
+
