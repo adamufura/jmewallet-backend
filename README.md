@@ -25,25 +25,28 @@ A secure crypto trading platform backend built with Node.js, Express, TypeScript
 ## Installation
 
 1. Clone the repository
+
 ```bash
 git clone https://github.com/adamufura/jmewallet-backend.git
 cd jmewallet-backend
 ```
 
 2. Install dependencies
+
 ```bash
 npm install
 ```
 
 3. Set up environment variables
-Create a `.env` file in the root directory:
+   Create a `.env` file in the root directory:
+
 ```env
 # Server Configuration
 PORT=5000
 NODE_ENV=development
 
 # MongoDB Configuration
-MONGO_URI=mongodb+srv://asolar:8C08PDP3vWIuyTz5@cluster0.geeagp0.mongodb.net/jmewallet
+MONGO_URI=mongodb+srv://
 
 # JWT Configuration
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
@@ -58,11 +61,13 @@ ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
 ```
 
 4. Start the development server
+
 ```bash
 npm run dev
 ```
 
 5. Build for production
+
 ```bash
 npm run build
 npm start
@@ -73,23 +78,28 @@ npm start
 ### User Endpoints (`/api/users`)
 
 #### Public Routes
+
 - `POST /api/users/register` - Register a new user
 - `POST /api/users/login` - User login
 
 #### Protected Routes (require JWT)
+
 - `GET /api/users/profile` - Get user profile
 - `PUT /api/users/profile` - Update user profile
 
 ### Admin Endpoints (`/api/admin`)
 
 #### Public Routes
+
 - `POST /api/admin/register` - Register a new admin
 - `POST /api/admin/login` - Admin login
 
 #### Protected Routes (require JWT)
+
 - `GET /api/admin/profile` - Get admin profile
 
 ### Health Check
+
 - `GET /health` - Check API status
 
 ## User Registration Example
@@ -188,4 +198,3 @@ src/
 ## License
 
 ISC
-
