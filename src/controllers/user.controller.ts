@@ -1,8 +1,10 @@
 import { Response } from 'express';
+import mongoose from 'mongoose';
 import User from '../models/user.model';
+import UserEbook, { IUserEbook } from '../models/userebook.model';
 import { AuthRequest, RegisterUserDTO, LoginDTO } from '../types';
 import { generateToken } from '../utils/jwt';
-import { successResponse, errorResponse, unauthorizedResponse } from '../utils/response';
+import { successResponse, errorResponse, unauthorizedResponse, notFoundResponse } from '../utils/response';
 
 export const registerUser = async (
   req: AuthRequest,
@@ -209,6 +211,161 @@ export const updateUserProfile = async (
   } catch (error: any) {
     console.error('Update user profile error:', error);
     errorResponse(res, error.message || 'Failed to update profile', 500);
+  }
+};
+
+// Get all ebooks for authenticated user
+export const getAllEbooks = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      unauthorizedResponse(res, 'User not authenticated');
+      return;
+    }
+
+    const ebooks = await UserEbook.find({ userId: new mongoose.Types.ObjectId(userId) })
+      .sort({ updatedAt: -1 })
+      .select('-__v');
+
+    successResponse(
+      res,
+      ebooks.map((ebook: IUserEbook) => ({
+        id: (ebook._id as mongoose.Types.ObjectId).toString(),
+        title: ebook.title,
+        content: ebook.content,
+        createdAt: ebook.createdAt.toISOString(),
+        updatedAt: ebook.updatedAt.toISOString(),
+      })),
+      'Ebooks retrieved successfully'
+    );
+  } catch (error: any) {
+    console.error('Get all ebooks error:', error);
+    errorResponse(res, error.message || 'Failed to retrieve ebooks', 500);
+  }
+};
+
+// Create a new ebook
+export const createEbook = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const { title, content } = req.body;
+
+    if (!userId) {
+      unauthorizedResponse(res, 'User not authenticated');
+      return;
+    }
+
+    const ebook = await UserEbook.create({
+      userId: new mongoose.Types.ObjectId(userId),
+      title,
+      content,
+    });
+
+    successResponse(
+      res,
+      {
+        id: (ebook._id as mongoose.Types.ObjectId).toString(),
+        title: ebook.title,
+        content: ebook.content,
+        createdAt: ebook.createdAt.toISOString(),
+        updatedAt: ebook.updatedAt.toISOString(),
+      },
+      'Ebook created successfully',
+      201
+    );
+  } catch (error: any) {
+    console.error('Create ebook error:', error);
+    errorResponse(res, error.message || 'Failed to create ebook', 500);
+  }
+};
+
+// Update an ebook
+export const updateEbook = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const { id } = req.params;
+    const { title, content } = req.body;
+
+    if (!userId) {
+      unauthorizedResponse(res, 'User not authenticated');
+      return;
+    }
+
+    const ebook = await UserEbook.findOne({ 
+      _id: new mongoose.Types.ObjectId(id), 
+      userId: new mongoose.Types.ObjectId(userId) 
+    });
+
+    if (!ebook) {
+      notFoundResponse(res, 'Ebook not found or you do not have permission to access it');
+      return;
+    }
+
+    if (title !== undefined) ebook.title = title;
+    if (content !== undefined) ebook.content = content;
+
+    await ebook.save();
+
+    successResponse(
+      res,
+      {
+        id: (ebook._id as mongoose.Types.ObjectId).toString(),
+        title: ebook.title,
+        content: ebook.content,
+        createdAt: ebook.createdAt.toISOString(),
+        updatedAt: ebook.updatedAt.toISOString(),
+      },
+      'Ebook updated successfully'
+    );
+  } catch (error: any) {
+    console.error('Update ebook error:', error);
+    errorResponse(res, error.message || 'Failed to update ebook', 500);
+  }
+};
+
+// Delete an ebook
+export const deleteEbook = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const { id } = req.params;
+
+    if (!userId) {
+      unauthorizedResponse(res, 'User not authenticated');
+      return;
+    }
+
+    const ebook = await UserEbook.findOne({ 
+      _id: new mongoose.Types.ObjectId(id), 
+      userId: new mongoose.Types.ObjectId(userId) 
+    });
+
+    if (!ebook) {
+      notFoundResponse(res, 'Ebook not found or you do not have permission to delete it');
+      return;
+    }
+
+    await UserEbook.deleteOne({ 
+      _id: new mongoose.Types.ObjectId(id), 
+      userId: new mongoose.Types.ObjectId(userId) 
+    });
+
+    successResponse(res, null, 'Ebook deleted successfully');
+  } catch (error: any) {
+    console.error('Delete ebook error:', error);
+    errorResponse(res, error.message || 'Failed to delete ebook', 500);
   }
 };
 
