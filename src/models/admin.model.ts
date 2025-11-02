@@ -63,5 +63,6 @@ adminSchema.index({ email: 1 });
 
 const Admin = mongoose.model<IAdmin>('Admin', adminSchema);
 
+export { IAdmin };
 export default Admin;
 

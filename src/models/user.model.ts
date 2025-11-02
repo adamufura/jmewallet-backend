@@ -136,5 +136,6 @@ userSchema.index({ referralCode: 1 });
 
 const User = mongoose.model<IUser>('User', userSchema);
 
+export { IUser };
 export default User;
 
