@@ -74,3 +74,44 @@ export const updateEbookValidation = [
     .withMessage('Content must be between 1 and 50000 characters'),
 ];
 
+export const createOrUpdateStatementValidation = [
+  body('date')
+    .notEmpty()
+    .withMessage('Date is required')
+    .isISO8601()
+    .withMessage('Date must be a valid ISO 8601 date string (YYYY-MM-DD)'),
+  body('earnings')
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage('Earnings must be a non-negative number'),
+  body('spending')
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage('Spending must be a non-negative number'),
+  body('notes')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Notes cannot exceed 500 characters'),
+];
+
+export const updateStatementValidation = [
+  body('date')
+    .optional()
+    .isISO8601()
+    .withMessage('Date must be a valid ISO 8601 date string (YYYY-MM-DD)'),
+  body('earnings')
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage('Earnings must be a non-negative number'),
+  body('spending')
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage('Spending must be a non-negative number'),
+  body('notes')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Notes cannot exceed 500 characters'),
+];
+

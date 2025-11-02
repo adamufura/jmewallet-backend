@@ -2,6 +2,7 @@ import { Response } from 'express';
 import mongoose from 'mongoose';
 import User from '../models/user.model';
 import UserEbook, { IUserEbook } from '../models/userebook.model';
+import UserStatement, { IUserStatement } from '../models/userstatement.model';
 import { AuthRequest, RegisterUserDTO, LoginDTO } from '../types';
 import { generateToken } from '../utils/jwt';
 import { successResponse, errorResponse, unauthorizedResponse, notFoundResponse } from '../utils/response';
@@ -366,6 +367,200 @@ export const deleteEbook = async (
   } catch (error: any) {
     console.error('Delete ebook error:', error);
     errorResponse(res, error.message || 'Failed to delete ebook', 500);
+  }
+};
+
+// Get all statements for authenticated user
+export const getAllStatements = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      unauthorizedResponse(res, 'User not authenticated');
+      return;
+    }
+
+    const statements = await UserStatement.find({ userId: new mongoose.Types.ObjectId(userId) })
+      .sort({ date: -1 })
+      .select('-__v');
+
+    successResponse(
+      res,
+      statements.map((statement: IUserStatement) => ({
+        id: (statement._id as mongoose.Types.ObjectId).toString(),
+        date: statement.date.toISOString().split('T')[0], // Format as YYYY-MM-DD
+        earnings: statement.earnings,
+        spending: statement.spending,
+        notes: statement.notes,
+      })),
+      'Statements retrieved successfully'
+    );
+  } catch (error: any) {
+    console.error('Get all statements error:', error);
+    errorResponse(res, error.message || 'Failed to retrieve statements', 500);
+  }
+};
+
+// Create or update a statement (upsert based on date)
+export const createOrUpdateStatement = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const { date, earnings, spending, notes } = req.body;
+
+    if (!userId) {
+      unauthorizedResponse(res, 'User not authenticated');
+      return;
+    }
+
+    // Convert date string to Date object
+    const statementDate = new Date(date);
+    if (isNaN(statementDate.getTime())) {
+      errorResponse(res, 'Invalid date format', 400);
+      return;
+    }
+
+    // Normalize date to start of day for consistency (create new Date to avoid mutation)
+    const normalizedDate = new Date(statementDate);
+    normalizedDate.setHours(0, 0, 0, 0);
+
+    const statement = await UserStatement.findOneAndUpdate(
+      { 
+        userId: new mongoose.Types.ObjectId(userId), 
+        date: normalizedDate 
+      },
+      {
+        userId: new mongoose.Types.ObjectId(userId),
+        date: normalizedDate,
+        earnings: earnings || 0,
+        spending: spending || 0,
+        notes: notes || undefined,
+      },
+      {
+        upsert: true,
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    successResponse(
+      res,
+      {
+        id: (statement._id as mongoose.Types.ObjectId).toString(),
+        date: statement.date.toISOString().split('T')[0],
+        earnings: statement.earnings,
+        spending: statement.spending,
+        notes: statement.notes,
+      },
+      'Statement saved successfully',
+      201
+    );
+  } catch (error: any) {
+    console.error('Create or update statement error:', error);
+    if (error.code === 11000) {
+      errorResponse(res, 'Statement for this date already exists', 400);
+    } else {
+      errorResponse(res, error.message || 'Failed to save statement', 500);
+    }
+  }
+};
+
+// Update a statement
+export const updateStatement = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const { id } = req.params;
+    const { date, earnings, spending, notes } = req.body;
+
+    if (!userId) {
+      unauthorizedResponse(res, 'User not authenticated');
+      return;
+    }
+
+    const statement = await UserStatement.findOne({ 
+      _id: new mongoose.Types.ObjectId(id), 
+      userId: new mongoose.Types.ObjectId(userId) 
+    });
+
+    if (!statement) {
+      notFoundResponse(res, 'Statement not found or you do not have permission to access it');
+      return;
+    }
+
+    if (date !== undefined) {
+      const statementDate = new Date(date);
+      if (isNaN(statementDate.getTime())) {
+        errorResponse(res, 'Invalid date format', 400);
+        return;
+      }
+      const normalizedDate = new Date(statementDate);
+      normalizedDate.setHours(0, 0, 0, 0);
+      statement.date = normalizedDate;
+    }
+    if (earnings !== undefined) statement.earnings = earnings;
+    if (spending !== undefined) statement.spending = spending;
+    if (notes !== undefined) statement.notes = notes || undefined;
+
+    await statement.save();
+
+    successResponse(
+      res,
+      {
+        id: (statement._id as mongoose.Types.ObjectId).toString(),
+        date: statement.date.toISOString().split('T')[0],
+        earnings: statement.earnings,
+        spending: statement.spending,
+        notes: statement.notes,
+      },
+      'Statement updated successfully'
+    );
+  } catch (error: any) {
+    console.error('Update statement error:', error);
+    errorResponse(res, error.message || 'Failed to update statement', 500);
+  }
+};
+
+// Delete a statement
+export const deleteStatement = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const { id } = req.params;
+
+    if (!userId) {
+      unauthorizedResponse(res, 'User not authenticated');
+      return;
+    }
+
+    const statement = await UserStatement.findOne({ 
+      _id: new mongoose.Types.ObjectId(id), 
+      userId: new mongoose.Types.ObjectId(userId) 
+    });
+
+    if (!statement) {
+      notFoundResponse(res, 'Statement not found or you do not have permission to delete it');
+      return;
+    }
+
+    await UserStatement.deleteOne({ 
+      _id: new mongoose.Types.ObjectId(id), 
+      userId: new mongoose.Types.ObjectId(userId) 
+    });
+
+    successResponse(res, null, 'Statement deleted successfully');
+  } catch (error: any) {
+    console.error('Delete statement error:', error);
+    errorResponse(res, error.message || 'Failed to delete statement', 500);
   }
 };
 
