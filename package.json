@@ -26,6 +26,7 @@
   "homepage": "https://github.com/adamufura/jmewallet-backend#readme",
   "description": "Crypto trading platform backend",
   "dependencies": {
+    "axios": "^1.13.1",
     "bcryptjs": "^3.0.2",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
