@@ -7,6 +7,8 @@ A secure crypto trading platform backend built with Node.js, Express, TypeScript
 - 🔐 **Separate Authentication Systems** - Independent auth for Users and Admins
 - 🛡️ **JWT Authentication** - Secure token-based authentication
 - 💼 **User Management** - Complete user profiles with KYC, wallets, and referral system
+- 💱 **USD & Crypto Wallet Engine** - Built-in USD virtual wallet, per-asset balances, and internal ledger helpers
+- ♻️ **Universal Swap Service** - CoinGecko-powered USD↔️Crypto & Crypto↔️Crypto swaps with history logging
 - 👮 **Admin Panel** - Admin authentication with role management
 - 🔒 **Security** - Helmet, CORS, Rate Limiting, and password hashing
 - 📝 **Validation** - Express-validator for input validation
@@ -58,6 +60,10 @@ RATE_LIMIT_MAX_REQUESTS=100
 
 # CORS Configuration
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+
+# Market Data
+COINGECKO_API_URL=https://api.coingecko.com/api/v3
+COIN_RATE_CACHE_TTL=60000
 ```
 
 4. Start the development server
@@ -86,6 +92,12 @@ npm start
 
 - `GET /api/users/profile` - Get user profile
 - `PUT /api/users/profile` - Update user profile
+- `POST /api/users/wallets/usd/deposit` - Credit the internal USD wallet
+- `POST /api/users/swap/usd-to-crypto` - Swap USD balance into a supported crypto asset
+- `POST /api/users/swap/crypto-to-usd` - Swap a crypto asset back into USD
+- `POST /api/users/swap/crypto-to-crypto` - Swap any supported crypto pair internally
+- `GET/POST/PUT/DELETE /api/users/ebooks` - Manage personal ebooks
+- `GET/POST/PUT/DELETE /api/users/statements` - Manage personal statements
 
 ### Admin Endpoints (`/api/admin`)
 
@@ -139,7 +151,8 @@ curl -X GET http://localhost:5000/api/users/profile \
 
 - **Basic Info**: email, password, firstName, lastName, phone
 - **KYC**: kycStatus (pending/verified/rejected), verificationLevel (0-3), kycDocuments
-- **Crypto**: wallets array (currency, address, balance), balances map
+- **Wallets**: `usdWallet` object (balance, lockedBalance, lastUpdated) and `wallets` array with per-coin metadata
+- **Balances**: `balances` and `lockedBalances` maps keyed by supported symbols (BTC, ETH, TRX, BNB, MATIC, USDT_TRC20, USDT_BEP20, BTG)
 - **Referral**: referralCode (auto-generated), referredBy
 - **Metadata**: isActive, lastLogin, createdAt, updatedAt
 

@@ -1,4 +1,10 @@
 import { body } from 'express-validator';
+import { SUPPORTED_COINS } from '../models/user.model';
+
+const SUPPORTED_COIN_MESSAGE = `Coin must be one of: ${SUPPORTED_COINS.join(', ')}`;
+
+const isSupportedCoin = (value: string) =>
+  SUPPORTED_COINS.includes(value.toUpperCase() as (typeof SUPPORTED_COINS)[number]);
 
 export const registerUserValidation = [
   body('email')
@@ -113,5 +119,79 @@ export const updateStatementValidation = [
     .trim()
     .isLength({ max: 500 })
     .withMessage('Notes cannot exceed 500 characters'),
+];
+
+export const usdDepositValidation = [
+  body('amount')
+    .exists()
+    .withMessage('Amount is required')
+    .isFloat({ gt: 0 })
+    .withMessage('Amount must be greater than zero'),
+  body('metadata')
+    .optional()
+    .isObject()
+    .withMessage('Metadata must be an object'),
+];
+
+export const usdToCryptoSwapValidation = [
+  body('amount')
+    .exists()
+    .withMessage('Amount is required')
+    .isFloat({ gt: 0 })
+    .withMessage('Amount must be greater than zero'),
+  body('to')
+    .exists()
+    .withMessage('Destination coin is required')
+    .isString()
+    .withMessage('Destination coin must be a string')
+    .bail()
+    .custom((value) => isSupportedCoin(value))
+    .withMessage(SUPPORTED_COIN_MESSAGE),
+];
+
+export const cryptoToUsdSwapValidation = [
+  body('amount')
+    .exists()
+    .withMessage('Amount is required')
+    .isFloat({ gt: 0 })
+    .withMessage('Amount must be greater than zero'),
+  body('from')
+    .exists()
+    .withMessage('Source coin is required')
+    .isString()
+    .withMessage('Source coin must be a string')
+    .bail()
+    .custom((value) => isSupportedCoin(value))
+    .withMessage(SUPPORTED_COIN_MESSAGE),
+];
+
+export const cryptoToCryptoSwapValidation = [
+  body('amount')
+    .exists()
+    .withMessage('Amount is required')
+    .isFloat({ gt: 0 })
+    .withMessage('Amount must be greater than zero'),
+  body('from')
+    .exists()
+    .withMessage('Source coin is required')
+    .isString()
+    .withMessage('Source coin must be a string')
+    .bail()
+    .custom((value) => isSupportedCoin(value))
+    .withMessage(SUPPORTED_COIN_MESSAGE),
+  body('to')
+    .exists()
+    .withMessage('Destination coin is required')
+    .isString()
+    .withMessage('Destination coin must be a string')
+    .bail()
+    .custom((value) => isSupportedCoin(value))
+    .withMessage(SUPPORTED_COIN_MESSAGE),
+  body('to').custom((value, { req }) => {
+    if (value && req.body.from && value.toUpperCase() === req.body.from.toUpperCase()) {
+      throw new Error('Source and destination coins must be different');
+    }
+    return true;
+  }),
 ];
 

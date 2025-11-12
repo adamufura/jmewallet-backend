@@ -3,9 +3,74 @@ import mongoose from 'mongoose';
 import User from '../models/user.model';
 import UserEbook, { IUserEbook } from '../models/userebook.model';
 import UserStatement, { IUserStatement } from '../models/userstatement.model';
-import { AuthRequest, RegisterUserDTO, LoginDTO } from '../types';
+import { AuthRequest, RegisterUserDTO, LoginDTO, IUser } from '../types';
 import { generateToken } from '../utils/jwt';
 import { successResponse, errorResponse, unauthorizedResponse, notFoundResponse } from '../utils/response';
+import { swapService, SwapResult } from '../services/swap.service';
+
+const mapToPlainObject = (value: any) => {
+  if (!value) {
+    return {};
+  }
+  if (typeof value.toObject === 'function') {
+    return value.toObject();
+  }
+  if (value instanceof Map) {
+    return Object.fromEntries(value);
+  }
+  return { ...value };
+};
+
+const serializeWallets = (wallets: any[] = []) =>
+  wallets.map((wallet) => (typeof wallet.toObject === 'function' ? wallet.toObject() : wallet));
+
+const ensureUserWalletState = (user?: IUser | null) => {
+  if (user && typeof user.ensureBalanceMaps === 'function') {
+    user.ensureBalanceMaps();
+  }
+  return user;
+};
+
+const buildUserResponse = (user: IUser) => ({
+  id: user._id,
+  email: user.email,
+  firstName: user.firstName,
+  lastName: user.lastName,
+  phone: user.phone,
+  kycStatus: user.kycStatus,
+  verificationLevel: user.verificationLevel,
+  referralCode: user.referralCode,
+  usdWallet: user.usdWallet,
+  wallets: serializeWallets(user.wallets),
+  balances: mapToPlainObject(user.balances),
+  lockedBalances: mapToPlainObject(user.lockedBalances),
+  lastLogin: user.lastLogin,
+  isActive: user.isActive,
+});
+
+const respondWithSwapResult = (
+  res: Response,
+  user: IUser,
+  result: SwapResult,
+  message: string,
+  statusCode = 200
+) => {
+  const transaction =
+    typeof result.transaction.toObject === 'function'
+      ? result.transaction.toObject()
+      : result.transaction;
+
+  successResponse(
+    res,
+    {
+      user: buildUserResponse(user),
+      transaction,
+      quote: result.quote,
+    },
+    message,
+    statusCode
+  );
+};
 
 export const registerUser = async (
   req: AuthRequest,
@@ -40,6 +105,8 @@ export const registerUser = async (
       referredBy: referralCode,
     });
 
+    ensureUserWalletState(user);
+
     // Generate JWT token
     const token = generateToken({
       id: user._id,
@@ -51,17 +118,7 @@ export const registerUser = async (
       res,
       {
         token,
-        user: {
-          id: user._id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          phone: user.phone,
-          kycStatus: user.kycStatus,
-          verificationLevel: user.verificationLevel,
-          referralCode: user.referralCode,
-          isActive: user.isActive,
-        },
+        user: buildUserResponse(user),
       },
       'User registered successfully',
       201
@@ -103,6 +160,8 @@ export const loginUser = async (
     user.lastLogin = new Date();
     await user.save();
 
+    ensureUserWalletState(user);
+
     // Generate JWT token
     const token = generateToken({
       id: user._id,
@@ -114,20 +173,7 @@ export const loginUser = async (
       res,
       {
         token,
-        user: {
-          id: user._id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          phone: user.phone,
-          kycStatus: user.kycStatus,
-          verificationLevel: user.verificationLevel,
-          referralCode: user.referralCode,
-          wallets: user.wallets,
-          balances: Object.fromEntries(user.balances),
-          lastLogin: user.lastLogin,
-          isActive: user.isActive,
-        },
+        user: buildUserResponse(user),
       },
       'Login successful'
     );
@@ -150,21 +196,12 @@ export const getUserProfile = async (
       return;
     }
 
+    ensureUserWalletState(user);
+
     successResponse(res, {
-      id: user._id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      phone: user.phone,
-      kycStatus: user.kycStatus,
-      verificationLevel: user.verificationLevel,
+      ...buildUserResponse(user),
       kycDocuments: user.kycDocuments,
-      wallets: user.wallets,
-      balances: Object.fromEntries(user.balances),
-      referralCode: user.referralCode,
       referredBy: user.referredBy,
-      lastLogin: user.lastLogin,
-      isActive: user.isActive,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     });
@@ -212,6 +249,153 @@ export const updateUserProfile = async (
   } catch (error: any) {
     console.error('Update user profile error:', error);
     errorResponse(res, error.message || 'Failed to update profile', 500);
+  }
+};
+
+export const depositUsd = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const { amount, metadata } = req.body;
+
+    if (!userId) {
+      unauthorizedResponse(res, 'User not authenticated');
+      return;
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      errorResponse(res, 'User not found', 404);
+      return;
+    }
+
+    ensureUserWalletState(user);
+
+    const amountValue = Number(amount);
+    if (Number.isNaN(amountValue)) {
+      errorResponse(res, 'Amount must be a valid number', 400);
+      return;
+    }
+    const result = await swapService.depositUsd(user, amountValue, metadata);
+    ensureUserWalletState(result.user);
+
+    respondWithSwapResult(res, result.user, result, 'USD wallet credited successfully', 201);
+  } catch (error: any) {
+    console.error('Deposit USD error:', error);
+    errorResponse(res, error.message || 'Failed to deposit USD', 500);
+  }
+};
+
+export const swapUsdToCrypto = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const { amount, to } = req.body;
+
+    if (!userId) {
+      unauthorizedResponse(res, 'User not authenticated');
+      return;
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      errorResponse(res, 'User not found', 404);
+      return;
+    }
+
+    ensureUserWalletState(user);
+
+    const amountValue = Number(amount);
+    if (Number.isNaN(amountValue)) {
+      errorResponse(res, 'Amount must be a valid number', 400);
+      return;
+    }
+
+    const result = await swapService.usdToCrypto(user, amountValue, to);
+    ensureUserWalletState(result.user);
+
+    respondWithSwapResult(res, result.user, result, 'Swap completed successfully');
+  } catch (error: any) {
+    console.error('USD to crypto swap error:', error);
+    errorResponse(res, error.message || 'Failed to swap USD to crypto', 500);
+  }
+};
+
+export const swapCryptoToUsd = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const { amount, from } = req.body;
+
+    if (!userId) {
+      unauthorizedResponse(res, 'User not authenticated');
+      return;
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      errorResponse(res, 'User not found', 404);
+      return;
+    }
+
+    ensureUserWalletState(user);
+
+    const amountValue = Number(amount);
+    if (Number.isNaN(amountValue)) {
+      errorResponse(res, 'Amount must be a valid number', 400);
+      return;
+    }
+
+    const result = await swapService.cryptoToUsd(user, amountValue, from);
+    ensureUserWalletState(result.user);
+
+    respondWithSwapResult(res, result.user, result, 'Swap completed successfully');
+  } catch (error: any) {
+    console.error('Crypto to USD swap error:', error);
+    errorResponse(res, error.message || 'Failed to swap crypto to USD', 500);
+  }
+};
+
+export const swapCryptoToCrypto = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const { amount, from, to } = req.body;
+
+    if (!userId) {
+      unauthorizedResponse(res, 'User not authenticated');
+      return;
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      errorResponse(res, 'User not found', 404);
+      return;
+    }
+
+    ensureUserWalletState(user);
+
+    const amountValue = Number(amount);
+    if (Number.isNaN(amountValue)) {
+      errorResponse(res, 'Amount must be a valid number', 400);
+      return;
+    }
+
+    const result = await swapService.cryptoToCrypto(user, amountValue, from, to);
+    ensureUserWalletState(result.user);
+
+    respondWithSwapResult(res, result.user, result, 'Swap completed successfully');
+  } catch (error: any) {
+    console.error('Crypto to crypto swap error:', error);
+    errorResponse(res, error.message || 'Failed to swap crypto assets', 500);
   }
 };
 
@@ -302,9 +486,9 @@ export const updateEbook = async (
       return;
     }
 
-    const ebook = await UserEbook.findOne({ 
-      _id: new mongoose.Types.ObjectId(id), 
-      userId: new mongoose.Types.ObjectId(userId) 
+    const ebook = await UserEbook.findOne({
+      _id: new mongoose.Types.ObjectId(id),
+      userId: new mongoose.Types.ObjectId(userId),
     });
 
     if (!ebook) {
@@ -348,9 +532,9 @@ export const deleteEbook = async (
       return;
     }
 
-    const ebook = await UserEbook.findOne({ 
-      _id: new mongoose.Types.ObjectId(id), 
-      userId: new mongoose.Types.ObjectId(userId) 
+    const ebook = await UserEbook.findOne({
+      _id: new mongoose.Types.ObjectId(id),
+      userId: new mongoose.Types.ObjectId(userId),
     });
 
     if (!ebook) {
@@ -358,9 +542,9 @@ export const deleteEbook = async (
       return;
     }
 
-    await UserEbook.deleteOne({ 
-      _id: new mongoose.Types.ObjectId(id), 
-      userId: new mongoose.Types.ObjectId(userId) 
+    await UserEbook.deleteOne({
+      _id: new mongoose.Types.ObjectId(id),
+      userId: new mongoose.Types.ObjectId(userId),
     });
 
     successResponse(res, null, 'Ebook deleted successfully');
@@ -430,9 +614,9 @@ export const createOrUpdateStatement = async (
     normalizedDate.setHours(0, 0, 0, 0);
 
     const statement = await UserStatement.findOneAndUpdate(
-      { 
-        userId: new mongoose.Types.ObjectId(userId), 
-        date: normalizedDate 
+      {
+        userId: new mongoose.Types.ObjectId(userId),
+        date: normalizedDate,
       },
       {
         userId: new mongoose.Types.ObjectId(userId),
@@ -485,9 +669,9 @@ export const updateStatement = async (
       return;
     }
 
-    const statement = await UserStatement.findOne({ 
-      _id: new mongoose.Types.ObjectId(id), 
-      userId: new mongoose.Types.ObjectId(userId) 
+    const statement = await UserStatement.findOne({
+      _id: new mongoose.Types.ObjectId(id),
+      userId: new mongoose.Types.ObjectId(userId),
     });
 
     if (!statement) {
@@ -542,9 +726,9 @@ export const deleteStatement = async (
       return;
     }
 
-    const statement = await UserStatement.findOne({ 
-      _id: new mongoose.Types.ObjectId(id), 
-      userId: new mongoose.Types.ObjectId(userId) 
+    const statement = await UserStatement.findOne({
+      _id: new mongoose.Types.ObjectId(id),
+      userId: new mongoose.Types.ObjectId(userId),
     });
 
     if (!statement) {
@@ -552,9 +736,9 @@ export const deleteStatement = async (
       return;
     }
 
-    await UserStatement.deleteOne({ 
-      _id: new mongoose.Types.ObjectId(id), 
-      userId: new mongoose.Types.ObjectId(userId) 
+    await UserStatement.deleteOne({
+      _id: new mongoose.Types.ObjectId(id),
+      userId: new mongoose.Types.ObjectId(userId),
     });
 
     successResponse(res, null, 'Statement deleted successfully');

@@ -18,6 +18,35 @@ export interface AdminAuthRequest extends Request {
   };
 }
 
+export type SupportedCoin =
+  | 'BTC'
+  | 'ETH'
+  | 'TRX'
+  | 'BNB'
+  | 'MATIC'
+  | 'USDT_TRC20'
+  | 'USDT_BEP20'
+  | 'BTG';
+
+export interface UsdWallet {
+  balance: number;
+  lockedBalance: number;
+  currency: 'USD';
+  lastUpdated: Date;
+}
+
+export interface CryptoWallet {
+  currency: string;
+  symbol: SupportedCoin;
+  network?: string;
+  address: string;
+  privateKeyEncrypted: string;
+  balance: number;
+  lockedBalance: number;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
 // User related interfaces
 export interface IUser extends Document {
   _id: string;
@@ -33,19 +62,23 @@ export interface IUser extends Document {
     documentUrl: string;
     uploadedAt: Date;
   }[];
-  wallets: {
-    currency: string;
-    address: string;
-    balance: number;
-    createdAt: Date;
-  }[];
+  usdWallet: UsdWallet;
+  wallets: CryptoWallet[];
   balances: Map<string, number>;
+  lockedBalances: Map<string, number>;
   referralCode: string;
   referredBy?: string;
   isActive: boolean;
   lastLogin?: Date;
   createdAt: Date;
   updatedAt: Date;
+  ensureBalanceMaps(): void;
+  ensureWallet(symbol: SupportedCoin): CryptoWallet;
+  creditUSD(amount: number): void;
+  debitUSD(amount: number): void;
+  adjustCryptoBalance(symbol: SupportedCoin, amount: number): void;
+  lockCryptoBalance(symbol: SupportedCoin, amount: number): void;
+  unlockCryptoBalance(symbol: SupportedCoin, amount: number): void;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
@@ -98,5 +131,25 @@ export interface RegisterAdminDTO {
 export interface LoginDTO {
   email: string;
   password: string;
+}
+
+export interface UsdDepositDTO {
+  amount: number;
+  metadata?: Record<string, any>;
+}
+
+export interface SwapRequestDTO {
+  amount: number;
+  from?: string;
+  to?: string;
+}
+
+export interface SwapQuote {
+  fromSymbol: 'USD' | SupportedCoin;
+  toSymbol: 'USD' | SupportedCoin;
+  fromAmount: number;
+  toAmount: number;
+  usdRateFrom?: number;
+  usdRateTo?: number;
 }
 
